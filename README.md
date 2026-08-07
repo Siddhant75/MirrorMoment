@@ -11,6 +11,20 @@ MirrorMoment is a mobile-first occasion-confidence demo for the YouCam API Skin 
 4. Run `npm install` and `npm run dev`.
 5. Open `http://localhost:3000`.
 
+If Node reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` on a machine where antivirus
+or an enterprise proxy inspects HTTPS, do not disable TLS verification. Export
+the locally trusted public root certificate to an ignored PEM file, set
+`NODE_EXTRA_CA_CERTS` in the shell that launches Node, and then start the app.
+This is a local-machine trust setting and should not be copied to Railway.
+
+## Live API status
+
+On 2026-08-07, the production application routes completed one Skin Analysis
+task and three AI Clothes V3 tasks using original synthetic fixtures. All four
+tasks succeeded; the full command took 38 seconds including uploads, polling,
+and result downloads. Detailed evidence and privacy boundaries are recorded in
+`docs/API_NOTES.md`.
+
 ## Tests and checks
 
 ```powershell
