@@ -1,18 +1,67 @@
-# Dependencies and generated output
+# Dependencies, caches, and generated output
 /node_modules
 /.next
 /out
 /coverage
 /playwright-report
 /test-results
+/.cache
+/.turbo
+/.vercel
+/.railway
 
-# Local secrets and demo material
-.env*
-!/.env.example
-/generated-media
-/private-demo-images
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.json
+service-account*.json
+*.secret
+/.npmrc
+/.pypirc
+/secrets/
+
+# Private inputs, API results, and local demo material
+/generated-media/
+/private-demo-images/
+/downloads/
+/tmp/
+
+# Agent instructions, prompts, and local tool context
+AGENT.md
+AGENTS.md
+CLAUDE.md
+CODEX.md
+GEMINI.md
+.cursorrules
+.agent/
+.agents/
+.aider*
+.claude/
+.codex/
+.continue/
+.cursor/
+.gemini/
+.roo/
+.superpowers/
+.windsurf/
+/docs/agent-notes/
+/docs/superpowers/
+/.github/copilot-instructions.md
+/.github/instructions/
+/.github/prompts/
 
 # Editor and operating system files
 .DS_Store
+Thumbs.db
+Desktop.ini
+/.idea/
+/.vscode/
 *.tsbuildinfo
-npm-debug.log*
+*.log
