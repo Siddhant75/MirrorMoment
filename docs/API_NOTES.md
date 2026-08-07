@@ -20,3 +20,23 @@ Record the results below with no secrets or personally identifiable images.
 | Skin Analysis fields | Not yet run | |
 | AI Clothes V3 task | Not yet run | |
 | Failure/retry case | Not yet run | |
+
+## Official-reference checks completed on 2026-08-07
+
+These are documentation checks, not claims of a successful live task:
+
+- File initialization includes `file_name`, `content_type`, and `file_size`.
+- The upload destination and required headers are read from the first entry in
+  the file response's nested `requests` array.
+- Skin Analysis v2.1 is created with `src_file_id`, the supported SD cosmetic
+  actions `moisture`, `radiance`, and `texture`, and `format: "json"`.
+- The documented JSON result shape is `data.results.output[]`, with `type`,
+  `ui_score`, `raw_score`, and optional mask URLs. MirrorMoment retains only a
+  small normalized cosmetic label and UI score in the browser response.
+- AI Clothes V3 uses `src_file_id`, `ref_file_id`, and
+  `garment_category: "full_body"`.
+
+References:
+
+- https://docs.perfectcorp.com/reference/ai_skin_analysis/v2.1
+- https://docs.perfectcorp.com/reference/ai_clothes/section/overview

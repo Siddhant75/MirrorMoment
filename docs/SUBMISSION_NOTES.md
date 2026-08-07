@@ -12,4 +12,16 @@ MirrorMoment frames Skin AI and Apparel VTO as one “occasion confidence” dec
 
 ## Technical wall and workaround
 
-Record one real constraint encountered in the final integration, such as a task failure, image-framing requirement, or asynchronous task state. Explain the implemented recovery behavior and link to the relevant code path.
+During pre-live integration review, the first client implementation treated the
+presigned upload request as a single object and omitted `file_size`; it also
+sent Skin Analysis a generic `file_id`. The current YouCam references specify a
+nested `requests[]` upload structure and a Skin v2.1 task body containing
+`src_file_id`, `dst_actions`, and `format`. We converted the official examples
+into mocked contract tests before correcting the client. This prevented an
+invalid live run from consuming demo time and gave us a repeatable regression
+suite. Relevant paths: `src/lib/youcam/client.ts`,
+`src/lib/youcam/client.test.ts`, and
+`src/app/api/plan-jobs/status/route.test.ts`.
+
+Add the final live image-framing or vendor-error observation here after the API
+Playground and Railway smoke tests.

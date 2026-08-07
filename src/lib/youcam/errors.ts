@@ -9,3 +9,7 @@ export class YouCamError extends Error {
     this.name = "YouCamError";
   }
 }
+
+export function normalizeYouCamErrorCode(error: unknown): YouCamErrorCode {
+  return error instanceof YouCamError ? error.code : "unexpected_error";
+}

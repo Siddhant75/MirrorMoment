@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { YouCamError } from "@/lib/youcam/errors";
+
 import { createPlanJob } from "./job";
 
 describe("createPlanJob", () => {
@@ -49,5 +51,37 @@ describe("createPlanJob", () => {
 
     expect(job.skinTask).toBeUndefined();
     expect(job.lookTasks).toHaveLength(3);
+  });
+
+  it("preserves clothes task references when optional skin and one look fail to start", async () => {
+    const job = await createPlanJob(
+      {
+        occasion: "interview",
+        style: "classic",
+        formality: "polished",
+        budget: "mid",
+        skinPersonalization: true,
+      },
+      { faceFileId: "face-1", bodyFileId: "body-1" },
+      {
+        createSkinTask: async () => {
+          throw new YouCamError("vendor_unavailable", "Skin is temporarily unavailable.");
+        },
+        createClothesTask: async (_bodyFileId, referenceFileId) => {
+          if (referenceFileId === "reference-cocoa-blazer-set") {
+            throw new YouCamError("invalid_image", "Reference rejected.");
+          }
+          return { taskId: `task-${referenceFileId}` };
+        },
+      },
+      async (outfitId) => `reference-${outfitId}`,
+    );
+
+    expect(job.skinTask).toEqual({ status: "failed", errorCode: "vendor_unavailable" });
+    expect(job.lookTasks).toEqual([
+      { taskId: "task-reference-navy-tailoring", outfitId: "navy-tailoring" },
+      { status: "failed", errorCode: "invalid_image", outfitId: "cocoa-blazer-set" },
+      { taskId: "task-reference-graphite-set", outfitId: "graphite-set" },
+    ]);
   });
 });

@@ -6,7 +6,8 @@ MirrorMoment is a mobile-first occasion-confidence demo for the YouCam API Skin 
 
 1. Copy `.env.example` to `.env.local`.
 2. Set `YOUCAM_API_KEY` in `.env.local`. Never expose this value through `NEXT_PUBLIC_` variables or commit it.
-3. Add licensed JPEG or PNG garment references under `public/catalog/` using the filenames in `src/lib/domain/catalog.ts`.
+3. The repository includes nine original, unbranded PNG garment references in
+   `public/catalog/`; provenance is recorded in `docs/ASSET_ATTRIBUTION.md`.
 4. Run `npm install` and `npm run dev`.
 5. Open `http://localhost:3000`.
 

@@ -1,21 +1,22 @@
 "use client";
 
 import { toPng } from "html-to-image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { buildConfidencePlan } from "@/lib/domain/recommendation";
 import { budgets, formalities, occasions, styles, type ShopperProfile } from "@/lib/domain/types";
-
-type TaskReference = { taskId: string };
-type PlanJob = {
-  skinTask?: TaskReference;
-  lookTasks: Array<TaskReference & { outfitId: string }>;
-};
-type TaskState = "queued" | "processing" | "succeeded" | "failed";
-type JobStatus = {
-  skin?: { status: TaskState };
-  looks: Array<{ outfitId: string; status: TaskState; resultUrl?: string; errorCode?: string }>;
-};
+import { isTaskReference, type TaskAttempt } from "@/lib/plan/types";
+import {
+  MIRROR_MOMENT_SESSION_KEY,
+  parseMirrorMomentSession,
+  removeMirrorMomentSession,
+  writeMirrorMomentSession,
+  type JobStatus,
+  type PlanJob,
+  type StoredSession,
+  type TaskReference,
+  type TaskState,
+} from "@/lib/session/mirror-moment-session";
 
 const initialProfile: ShopperProfile = {
   occasion: "interview",
@@ -24,6 +25,72 @@ const initialProfile: ShopperProfile = {
   budget: "mid",
   skinPersonalization: true,
 };
+
+const POLL_INTERVAL_MS = 2_000;
+const POLL_TIMEOUT_MS = 90_000;
+const EMPTY_SESSION_SNAPSHOT = "__mirrormoment_empty_session__";
+
+function subscribeToSessionSnapshot() {
+  return () => undefined;
+}
+
+function getSessionSnapshot() {
+  return sessionStorage.getItem(MIRROR_MOMENT_SESSION_KEY) ?? EMPTY_SESSION_SNAPSHOT;
+}
+
+function getServerSessionSnapshot() {
+  return null;
+}
+
+function isTerminal(status: TaskState) {
+  return status === "succeeded" || status === "failed";
+}
+
+function isJobTerminal(status: JobStatus) {
+  return status.looks.every((look) => isTerminal(look.status))
+    && (!status.skin || isTerminal(status.skin.status));
+}
+
+function mergeTaskState<T extends { status: TaskState }>(current: T | undefined, next: T | undefined): T | undefined {
+  if (!current) return next;
+  if (!next || isTerminal(current.status)) return current;
+  return next;
+}
+
+export function mergeJobStatus(current: JobStatus | null, next: JobStatus): JobStatus {
+  if (!current) return next;
+  const nextLooks = new Map(next.looks.map((look) => [look.outfitId, look]));
+  return {
+    skin: mergeTaskState(current.skin, next.skin),
+    looks: current.looks.map((look) => mergeTaskState(look, nextLooks.get(look.outfitId)) ?? look),
+  };
+}
+
+function initialTaskState(task: TaskAttempt) {
+  return isTaskReference(task)
+    ? { status: "queued" as const }
+    : { status: "failed" as const, errorCode: task.errorCode };
+}
+
+function waitForPollDelay(signal: AbortSignal) {
+  return new Promise<boolean>((resolve) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      window.clearTimeout(timer);
+      resolve(false);
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(true);
+    }, POLL_INTERVAL_MS);
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+}
+
+function matchesInitialProfile(profile: ShopperProfile) {
+  return Object.entries(initialProfile).every(([key, value]) => profile[key as keyof ShopperProfile] === value);
+}
 
 function readable(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1).replaceAll("-", " ");
@@ -39,34 +106,116 @@ async function upload(file: File, purpose: "skin" | "clothes") {
 }
 
 export function MirrorMomentApp() {
-  const [profile, setProfile] = useState<ShopperProfile>(initialProfile);
+  const sessionSnapshot = useSyncExternalStore(
+    subscribeToSessionSnapshot,
+    getSessionSnapshot,
+    getServerSessionSnapshot,
+  );
+
+  if (sessionSnapshot === null) {
+    return (
+      <main className="min-h-screen bg-[#f7f4ef] px-4 py-8 text-[#221d1a]" aria-busy="true">
+        <p className="mx-auto max-w-6xl text-sm text-[#635a53]">Preparing MirrorMoment…</p>
+      </main>
+    );
+  }
+
+  const initialSession = parseMirrorMomentSession(
+    sessionSnapshot === EMPTY_SESSION_SNAPSHOT ? null : sessionSnapshot,
+  );
+  return <HydratedMirrorMomentApp initialSession={initialSession} />;
+}
+
+function restoredStatus(session: StoredSession | null): JobStatus | null {
+  if (!session?.job) return null;
+
+  const completedByOutfit = new Map(session.completedLooks.map((look) => [look.outfitId, look.resultUrl]));
+  return {
+    skin: session.job.skinTask ? initialTaskState(session.job.skinTask) : undefined,
+    looks: session.job.lookTasks.map((look) => {
+      const resultUrl = completedByOutfit.get(look.outfitId);
+      return resultUrl
+        ? { outfitId: look.outfitId, status: "succeeded", resultUrl }
+        : { outfitId: look.outfitId, ...initialTaskState(look) };
+    }),
+  };
+}
+
+function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSession | null }) {
+  const [profile, setProfile] = useState<ShopperProfile>(initialSession?.profile ?? initialProfile);
   const [consent, setConsent] = useState(false);
   const [facePhoto, setFacePhoto] = useState<File | null>(null);
   const [bodyPhoto, setBodyPhoto] = useState<File | null>(null);
-  const [job, setJob] = useState<PlanJob | null>(null);
-  const [status, setStatus] = useState<JobStatus | null>(null);
+  const [job, setJob] = useState<PlanJob | null>(initialSession?.job ?? null);
+  const [status, setStatus] = useState<JobStatus | null>(() => restoredStatus(initialSession));
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const planRef = useRef<HTMLDivElement>(null);
 
-  const confidencePlan = useMemo(() => buildConfidencePlan(profile, null), [profile]);
+  const skinSummary = status?.skin?.status === "succeeded" ? status.skin.summary ?? null : null;
+  const confidencePlan = useMemo(() => buildConfidencePlan(profile, skinSummary), [profile, skinSummary]);
+  const selectedLook = confidencePlan.looks.find((look) => look.id === selectedOutfitId);
+  const selectedResult = status?.looks.find((look) => look.outfitId === selectedOutfitId && look.status === "succeeded");
+  const fictionalPrice = selectedLook
+    ? { value: "$68", mid: "$128", premium: "$228" }[selectedLook.budget]
+    : null;
   const canStart = consent && bodyPhoto !== null && (!profile.skinPersonalization || facePhoto !== null);
-  const allSettled = status !== null && status.looks.every((look) => look.status === "succeeded" || look.status === "failed");
+  const allSettled = status !== null && isJobTerminal(status);
+
+  useEffect(() => {
+    if (!job && matchesInitialProfile(profile)) {
+      sessionStorage.removeItem(MIRROR_MOMENT_SESSION_KEY);
+      return;
+    }
+    writeMirrorMomentSession(sessionStorage, profile, job, status);
+  }, [job, profile, status]);
 
   useEffect(() => {
     if (!job || allSettled) return;
-    const timer = window.setInterval(async () => {
-      const response = await fetch("/api/plan-jobs/status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(job),
-      });
-      if (response.ok) {
-        setStatus(await response.json() as JobStatus);
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      if (cancelled) return;
+      controller.abort();
+      setStatus((current) => current ? {
+        skin: current.skin && !isTerminal(current.skin.status)
+          ? { status: "failed", errorCode: "timeout" }
+          : current.skin,
+        looks: current.looks.map((look) => isTerminal(look.status)
+          ? look
+          : { outfitId: look.outfitId, status: "failed", errorCode: "timeout" }),
+      } : current);
+      setError("Generation took longer than 90 seconds. Your completed looks are safe; retry any unfinished look.");
+    }, POLL_TIMEOUT_MS);
+
+    async function pollUntilSettled() {
+      while (!cancelled) {
+        if (!await waitForPollDelay(controller.signal) || cancelled) return;
+        try {
+          const response = await fetch("/api/plan-jobs/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(job),
+            signal: controller.signal,
+          });
+          if (!response.ok || cancelled) continue;
+          const next = await response.json() as JobStatus;
+          if (cancelled) return;
+          setStatus((current) => mergeJobStatus(current, next));
+          if (isJobTerminal(next)) return;
+        } catch {
+          if (controller.signal.aborted || cancelled) return;
+        }
       }
-    }, 2000);
-    return () => window.clearInterval(timer);
+    }
+
+    void pollUntilSettled();
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
   }, [allSettled, job]);
 
   async function createPlan() {
@@ -76,21 +225,39 @@ export function MirrorMomentApp() {
     setStatus(null);
     setSelectedOutfitId(null);
     try {
-      const body = await upload(bodyPhoto, "clothes");
-      const face = profile.skinPersonalization && facePhoto ? await upload(facePhoto, "skin") : undefined;
+      const uploadResults = await Promise.allSettled([
+        upload(bodyPhoto, "clothes"),
+        ...(profile.skinPersonalization && facePhoto ? [upload(facePhoto, "skin")] : []),
+      ]);
+      const bodyResult = uploadResults[0];
+      if (bodyResult.status === "rejected") throw bodyResult.reason;
+      const faceResult = uploadResults[1];
+      const skinUploadFailed = profile.skinPersonalization && faceResult?.status === "rejected";
+      const requestProfile = skinUploadFailed
+        ? { ...profile, skinPersonalization: false }
+        : profile;
       const response = await fetch("/api/plan-jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, bodyFileId: body.fileId, faceFileId: face?.fileId }),
+        body: JSON.stringify({
+          profile: requestProfile,
+          bodyFileId: bodyResult.value.fileId,
+          faceFileId: faceResult?.status === "fulfilled" ? faceResult.value.fileId : undefined,
+        }),
       });
       if (!response.ok) throw new Error("We could not create your plan. Please try again.");
-      const createdJob = await response.json() as PlanJob;
+      const vendorJob = await response.json() as PlanJob;
+      const createdJob: PlanJob = skinUploadFailed
+        ? { ...vendorJob, skinTask: { status: "failed", errorCode: "vendor_unavailable" } }
+        : vendorJob;
       setJob(createdJob);
       setStatus({
-        skin: createdJob.skinTask ? { status: "queued" } : undefined,
-        looks: createdJob.lookTasks.map((look) => ({ outfitId: look.outfitId, status: "queued" })),
+        skin: createdJob.skinTask ? initialTaskState(createdJob.skinTask) : undefined,
+        looks: createdJob.lookTasks.map((look) => ({ outfitId: look.outfitId, ...initialTaskState(look) })),
       });
-      sessionStorage.setItem("mirrormoment-profile", JSON.stringify(profile));
+      if (skinUploadFailed) {
+        setError("Cosmetic personalization could not start, so your three virtual looks are continuing without it.");
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Something went wrong. Please try again.");
     } finally {
@@ -99,7 +266,10 @@ export function MirrorMomentApp() {
   }
 
   async function retryLook(outfitId: string) {
-    if (!bodyPhoto) return;
+    if (!bodyPhoto) {
+      setError("Re-upload your full-body photo to retry this look.");
+      return;
+    }
     try {
       const body = await upload(bodyPhoto, "clothes");
       const response = await fetch("/api/look-tasks", {
@@ -126,7 +296,9 @@ export function MirrorMomentApp() {
   }
 
   function clearSession() {
-    sessionStorage.removeItem("mirrormoment-profile");
+    removeMirrorMomentSession(sessionStorage);
+    setProfile(initialProfile);
+    setConsent(false);
     setJob(null);
     setStatus(null);
     setSelectedOutfitId(null);
@@ -227,6 +399,15 @@ export function MirrorMomentApp() {
           <section className="mt-8 rounded-3xl bg-white p-6 shadow-sm sm:p-8" aria-live="polite">
             <h2 className="font-serif text-2xl">3. Compare your virtual looks</h2>
             <p className="mt-2 text-sm text-[#635a53]">We keep any successful look available even if another needs a retry.</p>
+            {status.skin && (
+              <p className="mt-3 rounded-xl bg-[#f7f4ef] px-4 py-3 text-sm text-[#635a53]">
+                {status.skin.status === "succeeded" && status.skin.summary
+                  ? "Cosmetic personalization ready."
+                  : status.skin.status === "failed" || status.skin.status === "succeeded"
+                    ? "Cosmetic personalization is unavailable; your plan remains occasion-and-style personalized."
+                    : "Cosmetic personalization is in progress."}
+              </p>
+            )}
             <div className="mt-6 grid gap-5 md:grid-cols-3">
               {status.looks.map((look) => {
                 const outfit = confidencePlan.looks.find((item) => item.id === look.outfitId);
@@ -250,15 +431,48 @@ export function MirrorMomentApp() {
           </section>
         )}
 
-        {selectedOutfitId && (
+        {selectedOutfitId && selectedLook && selectedResult?.resultUrl && (
           <section ref={planRef} className="mt-8 rounded-3xl bg-[#e9dfd3] p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a84e3f]">Confidence Plan</p>
-            <h2 className="mt-3 font-serif text-3xl">{confidencePlan.looks.find((look) => look.id === selectedOutfitId)?.title}</h2>
-            <p className="mt-3 max-w-2xl text-[#4e433b]">{confidencePlan.explanation}</p>
-            <div className="mt-6 rounded-2xl bg-white/70 p-5">
-              <p className="font-semibold">{confidencePlan.beautyEdit.title}</p>
-              <p className="mt-1 text-sm text-[#635a53]">{confidencePlan.beautyEdit.description}</p>
-              <p className="mt-3 text-xs uppercase tracking-wide text-[#8f7465]">{confidencePlan.personalizationLabel}</p>
+            <div className="mt-5 grid gap-6 md:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.2fr)]">
+              {/* Vendor result URLs are short-lived and may use multiple signed domains. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selectedResult.resultUrl}
+                alt={`Selected virtual try-on: ${selectedLook.title}`}
+                className="max-h-[30rem] w-full rounded-2xl bg-white/60 object-contain"
+              />
+              <div>
+                <h2 className="font-serif text-3xl">{selectedLook.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-[#4e433b]">{selectedLook.description}</p>
+                <p className="mt-4 text-sm leading-6 text-[#4e433b]">{confidencePlan.explanation}</p>
+                <dl className="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-white/60 p-4 text-sm">
+                  <div><dt className="text-[#806d60]">Occasion</dt><dd className="font-semibold">{readable(profile.occasion)}</dd></div>
+                  <div><dt className="text-[#806d60]">Style</dt><dd className="font-semibold">{readable(profile.style)}</dd></div>
+                  <div><dt className="text-[#806d60]">Formality</dt><dd className="font-semibold">{readable(selectedLook.formality)}</dd></div>
+                  <div><dt className="text-[#806d60]">Budget tier</dt><dd className="font-semibold">{readable(selectedLook.budget)}</dd></div>
+                </dl>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl bg-white/70 p-5">
+                <p className="font-semibold">{confidencePlan.beautyEdit.title}</p>
+                <p className="mt-1 text-sm text-[#635a53]">{confidencePlan.beautyEdit.description}</p>
+                <p className="mt-3 text-sm text-[#635a53]">
+                  {skinSummary
+                    ? `Cosmetic signal: ${readable(skinSummary.label)} ${skinSummary.score}/100`
+                    : "No Skin Analysis was used for this plan."}
+                </p>
+                <p className="mt-3 text-xs uppercase tracking-wide text-[#8f7465]">{confidencePlan.personalizationLabel}</p>
+              </div>
+              <div className="rounded-2xl bg-[#221d1a] p-5 text-white">
+                <p className="text-xs uppercase tracking-[0.16em] text-[#f1aa93]">Fictional cart estimate</p>
+                <div className="mt-3 flex items-start justify-between gap-4">
+                  <div><p className="font-semibold">{selectedLook.title}</p><p className="mt-1 text-xs text-[#d7cec6]">MirrorMoment demo catalog</p></div>
+                  <p className="font-serif text-2xl">{fictionalPrice}</p>
+                </div>
+                <p className="mt-4 text-xs leading-5 text-[#d7cec6]">Demo price only. No sizing or fit assessment is provided.</p>
+              </div>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <button onClick={downloadPlan} className="rounded-full bg-[#221d1a] px-5 py-3 text-sm font-semibold text-white">Download plan</button>

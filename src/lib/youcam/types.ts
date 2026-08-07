@@ -4,6 +4,7 @@ export type TaskResult = {
   status: TaskStatus;
   resultUrl?: string;
   errorCode?: string;
+  vendorResult?: unknown;
 };
 
 export type TaskReference = {

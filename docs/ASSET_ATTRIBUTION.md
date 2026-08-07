@@ -1,13 +1,29 @@
 # Asset attribution
 
-MirrorMoment currently includes no third-party garment photography.
+MirrorMoment includes no third-party garment photography, retailer imagery,
+campaign material, logos, or screenshots. The apparel references below were
+created specifically for this project with OpenAI's built-in image-generation
+tool on 2026-08-07. No external reference image was supplied.
 
-Before a live VTO demo or public submission, add nine licensed JPEG or PNG garment reference images in `public/catalog/` and record each asset here with:
+| Catalog file | Original subject | Source / creator | Attribution in product or video |
+| --- | --- | --- | --- |
+| `navy-tailoring.png` | Navy tailored blazer and trousers | Project-created with OpenAI image generation | Not required |
+| `ivory-jumpsuit.png` | Ivory tailored jumpsuit | Project-created with OpenAI image generation | Not required |
+| `plum-wrap-dress.png` | Plum wrap dress | Project-created with OpenAI image generation | Not required |
+| `graphite-set.png` | Graphite blazer and wide-leg trousers | Project-created with OpenAI image generation | Not required |
+| `sage-midi.png` | Sage tailored midi dress | Project-created with OpenAI image generation | Not required |
+| `cocoa-blazer-set.png` | Cocoa relaxed blazer and trousers | Project-created with OpenAI image generation | Not required |
+| `blue-satin-set.png` | Midnight-blue satin wrap set | Project-created with OpenAI image generation | Not required |
+| `linen-layered-look.png` | Natural-linen layered three-piece look | Project-created with OpenAI image generation | Not required |
+| `black-evening-look.png` | Black long-sleeve evening dress | Project-created with OpenAI image generation | Not required |
 
-- catalog filename;
-- creator or source;
-- license or written permission;
-- retrieval date; and
-- whether attribution is required in the product or video.
+## Generation prompt record
 
-Do not use retailer product photos, campaign imagery, logos, or screenshots without permission. The built-in image generator was unavailable during initial scaffolding, so no generated garment photos are included.
+Each asset used a separate `product-mockup` prompt describing its catalog
+subject. The shared constraints requested one original, unbranded, front-facing
+complete garment on an invisible dress form, photographed against a clean
+warm-white studio background with no person, body parts, accessories, text,
+logo, trademark, watermark, visible mannequin, hanger, or extra object.
+
+Do not replace these files with retailer product photos, campaign imagery,
+logos, or screenshots without documenting permission here.

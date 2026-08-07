@@ -10,7 +10,7 @@ export const catalog: Outfit[] = [
     formality: "polished",
     budget: "mid",
     garmentCategory: "full_body",
-    assetPath: "/catalog/navy-tailoring.svg",
+    assetPath: "/catalog/navy-tailoring.png",
     beautyTags: ["hydration", "texture"],
   },
   {
@@ -22,7 +22,7 @@ export const catalog: Outfit[] = [
     formality: "polished",
     budget: "mid",
     garmentCategory: "full_body",
-    assetPath: "/catalog/ivory-jumpsuit.svg",
+    assetPath: "/catalog/ivory-jumpsuit.png",
     beautyTags: ["hydration"],
   },
   {
@@ -34,7 +34,7 @@ export const catalog: Outfit[] = [
     formality: "formal",
     budget: "premium",
     garmentCategory: "full_body",
-    assetPath: "/catalog/plum-wrap-dress.svg",
+    assetPath: "/catalog/plum-wrap-dress.png",
     beautyTags: ["radiance"],
   },
   {
@@ -46,7 +46,7 @@ export const catalog: Outfit[] = [
     formality: "formal",
     budget: "premium",
     garmentCategory: "full_body",
-    assetPath: "/catalog/graphite-set.svg",
+    assetPath: "/catalog/graphite-set.png",
     beautyTags: ["texture"],
   },
   {
@@ -58,7 +58,7 @@ export const catalog: Outfit[] = [
     formality: "polished",
     budget: "mid",
     garmentCategory: "full_body",
-    assetPath: "/catalog/sage-midi.svg",
+    assetPath: "/catalog/sage-midi.png",
     beautyTags: ["hydration", "radiance"],
   },
   {
@@ -70,7 +70,7 @@ export const catalog: Outfit[] = [
     formality: "polished",
     budget: "value",
     garmentCategory: "full_body",
-    assetPath: "/catalog/cocoa-blazer-set.svg",
+    assetPath: "/catalog/cocoa-blazer-set.png",
     beautyTags: ["hydration"],
   },
   {
@@ -82,7 +82,7 @@ export const catalog: Outfit[] = [
     formality: "formal",
     budget: "premium",
     garmentCategory: "full_body",
-    assetPath: "/catalog/blue-satin-set.svg",
+    assetPath: "/catalog/blue-satin-set.png",
     beautyTags: ["radiance"],
   },
   {
@@ -94,7 +94,7 @@ export const catalog: Outfit[] = [
     formality: "relaxed",
     budget: "value",
     garmentCategory: "full_body",
-    assetPath: "/catalog/linen-layered-look.svg",
+    assetPath: "/catalog/linen-layered-look.png",
     beautyTags: ["hydration"],
   },
   {
@@ -106,7 +106,7 @@ export const catalog: Outfit[] = [
     formality: "formal",
     budget: "premium",
     garmentCategory: "full_body",
-    assetPath: "/catalog/black-evening-look.svg",
+    assetPath: "/catalog/black-evening-look.png",
     beautyTags: ["texture", "radiance"],
   },
 ];
