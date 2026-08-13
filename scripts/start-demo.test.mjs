@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 
 import { describe, it } from "vitest";
 
 import {
   assertSupportedNode,
+  getDemoServerLaunch,
   redactRuntime,
   validateMode,
 } from "./start-demo.mjs";
@@ -34,5 +36,12 @@ describe("demo launcher helpers", () => {
       redactRuntime({ mode: "replay", apiKey: "secret-value" }),
       { mode: "replay", keyStatus: "not required" },
     );
+  });
+
+  it("launches the built standalone server instead of next start", () => {
+    assert.deepEqual(getDemoServerLaunch(path.resolve("C:/example/MirrorMoment")), {
+      cwd: path.resolve("C:/example/MirrorMoment/.next/standalone"),
+      serverPath: path.resolve("C:/example/MirrorMoment/.next/standalone/server.js"),
+    });
   });
 });

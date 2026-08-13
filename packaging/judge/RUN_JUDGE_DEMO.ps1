@@ -34,8 +34,8 @@ if ($PackageKind -eq 'source') {
   } finally {
     Pop-Location
   }
-  $WorkingDirectory = $PackageRoot
-  $ServerArguments = @('node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3000')
+  $WorkingDirectory = Join-Path $PackageRoot '.next\standalone'
+  $ServerArguments = @('server.js')
 } else {
   $WorkingDirectory = Join-Path $PackageRoot 'app'
   $ServerArguments = @('server.js')

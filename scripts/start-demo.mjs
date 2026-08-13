@@ -36,6 +36,14 @@ export function redactRuntime({ mode, apiKey }) {
   };
 }
 
+export function getDemoServerLaunch(root) {
+  const cwd = path.resolve(root, ".next", "standalone");
+  return {
+    cwd,
+    serverPath: path.resolve(cwd, "server.js"),
+  };
+}
+
 function readLocalApiKey() {
   const envPath = path.join(projectRoot, ".env.local");
   if (!existsSync(envPath)) return "";
@@ -108,7 +116,9 @@ export async function main(argv = process.argv.slice(2)) {
 
   const environment = {
     ...process.env,
+    HOSTNAME: "127.0.0.1",
     MIRRORMOMENT_MODE: mode,
+    PORT: "3000",
     YOUCAM_API_KEY: apiKey,
   };
 
@@ -127,16 +137,9 @@ export async function main(argv = process.argv.slice(2)) {
     throw new Error(`Production build failed with exit code ${build.status ?? "unknown"}.`);
   }
 
-  const nextExecutable = path.join(projectRoot, "node_modules", "next", "dist", "bin", "next");
-  const child = spawn(process.execPath, [
-    nextExecutable,
-    "start",
-    "--hostname",
-    "127.0.0.1",
-    "--port",
-    "3000",
-  ], {
-    cwd: projectRoot,
+  const serverLaunch = getDemoServerLaunch(projectRoot);
+  const child = spawn(process.execPath, [serverLaunch.serverPath], {
+    cwd: serverLaunch.cwd,
     env: environment,
     stdio: "inherit",
   });

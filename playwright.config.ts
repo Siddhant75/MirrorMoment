@@ -12,11 +12,13 @@ export default defineConfig({
     launchOptions: existsSync(localChromePath) ? { executablePath: localChromePath } : undefined,
   },
   webServer: {
-    command: "node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3100",
+    command: "node .next/standalone/server.js",
     url: testBaseUrl,
     reuseExistingServer: false,
     env: {
+      HOSTNAME: "127.0.0.1",
       MIRRORMOMENT_MODE: "replay",
+      PORT: "3100",
       YOUCAM_API_KEY: "",
     },
   },

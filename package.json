@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/prepare-standalone.mjs",
     "start": "next start",
     "demo:replay": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-replay-demo.ps1",
     "demo:live": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-live-demo.ps1",

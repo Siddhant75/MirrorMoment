@@ -91,6 +91,7 @@ async function stageSource() {
     "tsconfig.json",
     "postcss.config.mjs",
     "eslint.config.mjs",
+    "scripts/prepare-standalone.mjs",
   ]) {
     await copyRequired(file, file);
   }
