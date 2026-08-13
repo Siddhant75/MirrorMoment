@@ -11,6 +11,7 @@
     "start": "next start",
     "demo:replay": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-replay-demo.ps1",
     "demo:live": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-live-demo.ps1",
+    "package:judge": "npm run build && node scripts/package-judge.mjs",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
