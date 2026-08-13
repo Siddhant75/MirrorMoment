@@ -1,73 +1,173 @@
 # MirrorMoment
 
-MirrorMoment is a mobile-first occasion-confidence demo for the YouCam API Skin AI & Apparel VTO Hackathon. A shopper chooses an occasion and style preferences, supplies a face selfie plus a full-body photo, then compares three generated virtual looks and downloads a Confidence Plan.
+MirrorMoment is a mobile-first occasion-confidence experience for the YouCam
+API Skin AI & Apparel VTO Hackathon. A shopper defines the moment they are
+preparing for, compares three YouCam Apparel VTO looks, optionally adds
+non-medical cosmetic context from YouCam Skin Analysis, and downloads one
+Confidence Plan.
 
-## Run locally
+The default runtime is a transparent, key-free **Recorded Judge Replay** built
+from successful YouCam outputs for one fictional synthetic subject. An explicit
+**Live YouCam** mode accepts new consented images and calls the real APIs. Live
+failures never fall back to replay results.
 
-1. Copy `.env.example` to `.env.local`.
-2. Set `YOUCAM_API_KEY` in `.env.local`. Never expose this value through `NEXT_PUBLIC_` variables or commit it.
-3. The repository includes nine original, unbranded PNG garment references in
-   `public/catalog/`; provenance is recorded in `docs/ASSET_ATTRIBUTION.md`.
-4. Run `npm install` and `npm run dev`.
-5. Open `http://localhost:3000`.
+## Requirements
 
-If Node reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` on a machine where antivirus
-or an enterprise proxy inspects HTTPS, do not disable TLS verification. Export
-the locally trusted public root certificate to an ignored PEM file, set
-`NODE_EXTRA_CA_CERTS` in the shell that launches Node, and then start the app.
-This is a local-machine trust setting and should not be copied to Railway.
+- Windows 10/11
+- Node.js 20 or newer
+- npm
+- A YouCam API key only for optional live mode
 
-## Repository safety
-
-- Commit `.env.example` as the variable-name template; keep every populated
-  `.env` variant local.
-- Never commit API keys, credentials, certificates, shopper photos, raw YouCam
-  responses, or generated session media.
-- Local agent instructions, prompts, planning traces, editor state, deployment
-  state, and private demo fixtures are excluded by `.gitignore`.
-- Before publishing, this command should list only `.env.example`:
-
-  ```powershell
-  git ls-files ".env*" "private-demo-images/**" "generated-media/**"
-  ```
-
-## Live API status
-
-On 2026-08-07, the application's local production build completed one Skin
-Analysis task and three AI Clothes V3 tasks using original synthetic fixtures.
-All four tasks succeeded; the full command took 38 seconds including uploads,
-polling, and result downloads. Detailed evidence and privacy boundaries are
-recorded in `docs/API_NOTES.md`.
-
-## Tests and checks
+Install the pinned dependencies once:
 
 ```powershell
-npm run lint
-npm test
-npx tsc --noEmit
-npm run build
-npm run test:e2e
+npm.cmd ci
 ```
 
-## Architecture
+## Recommended: key-free judge replay
 
-- The browser keeps profile choices, task references, and result URLs only for the current session.
-- Server routes keep `YOUCAM_API_KEY` private and proxy image-file initialization, task creation, and task-status polling to YouCam.
-- The browser polls every two seconds. A failed VTO look can be retried without discarding successful looks.
-- Skin results are optional cosmetic context only. The app does not make clinical, fit, sizing, or return-reduction claims.
+```powershell
+npm.cmd run demo:replay
+```
 
-## Railway deployment
+Wait for `MirrorMoment is ready at http://127.0.0.1:3000`, then open that URL
+manually. Replay mode clears the key from the application process, accepts only
+the bundled synthetic face/body files, makes no YouCam network calls, and
+reproduces queued, processing, comparison, selection, retry, download, and
+clear-session behavior.
 
-1. Push this repository to GitHub. It can remain private during development.
-2. Create a Railway service from the GitHub repository and grant Railway access
-   to the private repository.
-3. Set `YOUCAM_API_KEY` and `NEXT_PUBLIC_APP_URL` to the deployed public URL.
-4. Confirm the complete upload, generation, retry, download, and clear-session flow with a clean browser session before recording the demo.
+The replay badge and fixed profile are intentional: they keep the displayed
+inputs, recommendations, Skin result, and VTO images truthfully paired with the
+recorded API run.
 
-## Submission checklist
+## Optional: live YouCam mode
 
-- Repository link with access and visibility that satisfy the current Devpost
-  rules; re-check those rules immediately before submission.
-- Five screenshots: selection, consent/upload, generation, comparison, final Confidence Plan.
-- Public 150-180 second video showing the live API flow end-to-end.
-- Devpost custom-answer notes collected in `docs/SUBMISSION_NOTES.md`.
+Copy `.env.example` to `.env.local` and add the key locally:
+
+```dotenv
+YOUCAM_API_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Add the key after the first equals sign in your ignored `.env.local`. Do not
+paste it into source code, a `NEXT_PUBLIC_` variable, GitHub, demo
+screenshots, or terminal recordings. Start the attached live production app:
+
+```powershell
+npm.cmd run demo:live
+```
+
+Live mode is visibly labeled **Live YouCam**, accepts JPEG/PNG shopper photos
+under 8 MiB, and uses the same upload -> task -> poll -> result application
+routes as the replay. The launcher reports only whether the key is configured.
+
+If Node reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` on a machine where antivirus
+or an enterprise proxy inspects HTTPS, never disable TLS verification. Add the
+locally trusted public root to that one Node process with
+`NODE_EXTRA_CA_CERTS`; do not commit the certificate or treat it as a portable
+project setting.
+
+## Runtime boundaries
+
+| Mode | New shopper photos | YouCam calls | Credential | Result provenance |
+| --- | --- | --- | --- | --- |
+| Recorded Judge Replay | Bundled synthetic pair only | None | Not required | Recorded successful Skin/VTO outputs |
+| Live YouCam | Valid consented JPEG/PNG files | Skin Analysis v2.1 and AI Clothes V3 | Server-only key required | Fresh vendor task results |
+
+- The server owns runtime selection, YouCam authorization, catalog-reference
+  uploads, task creation, polling, and error normalization.
+- The browser receives no API key or raw Skin payload. It keeps only profile
+  choices, task references, and completed result URLs in `sessionStorage`.
+- Exactly three Apparel VTO tasks are created per plan. Individual retry starts
+  only the failed look and preserves successful results.
+- Skin personalization is optional cosmetic context. MirrorMoment makes no
+  diagnosis, treatment, sizing, fit-guarantee, or return-reduction claim.
+- Clear session removes browser-held MirrorMoment data only; it does not claim
+  to delete vendor-managed data.
+
+## Tests and release gates
+
+```powershell
+npm.cmd run lint
+npm.cmd test
+npx.cmd tsc --noEmit
+npm.cmd run build
+npm.cmd run test:e2e
+npm.cmd run package:judge
+```
+
+The Playwright suite forces replay mode with an empty key. It proves both the
+full Skin + three-look journey and the explicit no-Skin fallback against the
+production build.
+
+## Optional Devpost judge ZIP
+
+```powershell
+npm.cmd run package:judge
+```
+
+This creates the ignored file
+`release/MirrorMoment-Judge-Demo.zip`. The builder stages an explicit allowlist,
+rejects credentials, private keys, signed URLs, private inputs, raw vendor
+responses, and agent context, writes `SHA256SUMS.txt`, and enforces a 34 MiB
+safety ceiling below Devpost's 35 MB upload limit. The package runs locally on
+Node 20 and does not require a paid host.
+
+The ZIP is optional: the live Devpost requirements report that a video is
+required, while a website and ZIP are not required. It is included as a useful
+offline judge path, not as a substitute for the repository, screenshots, or
+video.
+
+## Recording and screenshots
+
+The user records the demo manually in OBS; no project script opens or controls
+a browser or OBS. Follow [docs/OBS_DEMO_GUIDE.md](docs/OBS_DEMO_GUIDE.md) for the
+2:55 narration and capture:
+
+1. locked selection profile and replay badge;
+2. synthetic image choices and consent;
+3. queued/processing generation states;
+4. three completed look comparisons; and
+5. the final Confidence Plan with Radiance 85/100, safety copy, fictional cart,
+   and download control.
+
+## Current Devpost submission requirements
+
+Refreshed from the YouCam Devpost connector on 2026-08-13:
+
+- provide a functional code repository with source, assets, and instructions;
+- if the repository remains private, share it with
+  `contact_event@PerfectCorp.com` before judging;
+- provide a product/value description and screenshots;
+- provide a public 1-3 minute YouTube, Vimeo, or Youku demo that shows the app
+  functioning and explains the YouCam APIs;
+- do not use unlicensed music, copyrighted material, or unrelated third-party
+  trademarks; and
+- complete the required submitter, project-status/start-date, API-surprise,
+  novel-use-case, and technical-obstacle questions.
+
+The repository is intentionally private until the owner decides to publish it.
+The creator must invite the required judge email before final submission.
+
+## Repository safety and assets
+
+- `.env.example` is the only tracked environment template; populated variants
+  stay ignored.
+- `private-demo-images/`, `release/`, local plans/specs, certificates, logs,
+  generated media, and agent context are ignored.
+- Public catalog and replay files are fictional, synthetic, and unbranded.
+  Provenance is recorded in
+  [docs/ASSET_ATTRIBUTION.md](docs/ASSET_ATTRIBUTION.md).
+- Live evidence and API details are documented in
+  [docs/API_NOTES.md](docs/API_NOTES.md); submission-answer drafts are in
+  [docs/SUBMISSION_NOTES.md](docs/SUBMISSION_NOTES.md).
+
+Before sharing or pushing, audit the tracked scope:
+
+```powershell
+git ls-files ".env*" "private-demo-images/**" "release/**" ".local-plans/**" "docs/JUDGE_DEMO_RELEASE.md"
+git diff --check
+```
+
+The first command should list `.env.example` and no private inputs or local
+planning files.
