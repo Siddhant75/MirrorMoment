@@ -53,6 +53,8 @@ GEMINI.md
 .windsurf/
 /docs/agent-notes/
 /docs/superpowers/
+/docs/JUDGE_DEMO_RELEASE.md
+/.local-plans/
 /.github/copilot-instructions.md
 /.github/instructions/
 /.github/prompts/
