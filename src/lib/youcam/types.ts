@@ -1,9 +1,11 @@
+import type { YouCamErrorCode } from "./errors";
+
 export type TaskStatus = "queued" | "processing" | "succeeded" | "failed";
 
 export type TaskResult = {
   status: TaskStatus;
   resultUrl?: string;
-  errorCode?: string;
+  errorCode?: YouCamErrorCode;
   vendorResult?: unknown;
 };
 

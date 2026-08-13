@@ -110,6 +110,20 @@ describe("YouCamClient", () => {
     expect(result).toEqual({ status: "succeeded", resultUrl: "https://vendor.example/results/look.png" });
   });
 
+  it("normalizes a clothes success without a result URL to an allowed error code", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: { task_status: "success", results: {} },
+      }), { status: 200 }),
+    );
+    const client = new YouCamClient("secret-key", fetcher);
+
+    await expect(client.getClothesTask("look-task")).resolves.toEqual({
+      status: "failed",
+      errorCode: "unexpected_error",
+    });
+  });
+
   it("creates a clothes task with source, reference, and garment category", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: { task_id: "created-task" } }), { status: 200 }),

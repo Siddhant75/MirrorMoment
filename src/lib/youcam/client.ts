@@ -107,7 +107,7 @@ export class YouCamClient {
       const resultUrl = typeof results === "object" && results !== null && "url" in results && typeof results.url === "string"
         ? results.url
         : undefined;
-      return resultUrl ? { status: "succeeded", resultUrl } : { status: "failed", errorCode: "missing_result" };
+      return resultUrl ? { status: "succeeded", resultUrl } : { status: "failed", errorCode: "unexpected_error" };
     }
     if (status === "error" || payload.data?.error) {
       return { status: "failed", errorCode: "task_failed" };
