@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { budgets, formalities, occasions, styles, type ShopperProfile, type SkinSummary } from "@/lib/domain/types";
 import type { PlanJob } from "@/lib/plan/types";
+import type { RuntimeMode } from "@/lib/runtime/types";
 
 export type { PlanJob } from "@/lib/plan/types";
 export type { TaskReference } from "@/lib/youcam/types";
@@ -15,7 +16,8 @@ export type JobStatus = {
 };
 
 export type StoredSession = {
-  version: 1;
+  version: 2;
+  mode: RuntimeMode;
   profile: ShopperProfile;
   job?: PlanJob;
   completedLooks: Array<{ outfitId: string; resultUrl: string }>;
@@ -40,33 +42,47 @@ const profileSchema = z.object({
   budget: z.enum(budgets),
   skinPersonalization: z.boolean(),
 });
+const httpsResultUrlSchema = z.url().refine((value) => {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+});
+const replayResultUrlSchema = z.string().regex(/^\/replay\/[a-z0-9-]+\.jpg$/);
+
 const storedSessionSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
+  mode: z.enum(["replay", "live"]),
   profile: profileSchema,
   job: z.object({
     skinTask: taskAttemptSchema.optional(),
     lookTasks: z.array(lookTaskAttemptSchema).length(3),
   }).optional(),
-  completedLooks: z.array(z.object({ outfitId: z.string().min(1), resultUrl: z.url() })),
+  completedLooks: z.array(z.object({
+    outfitId: z.string().min(1),
+    resultUrl: z.union([httpsResultUrlSchema, replayResultUrlSchema]),
+  })),
 });
 
-export function parseMirrorMomentSession(raw: string | null): StoredSession | null {
+export function parseMirrorMomentSession(raw: string | null, expectedMode: RuntimeMode): StoredSession | null {
   if (!raw) return null;
 
   try {
     const parsed = storedSessionSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
+    return parsed.success && parsed.data.mode === expectedMode ? parsed.data : null;
   } catch {
     return null;
   }
 }
 
-export function readMirrorMomentSession(storage: SessionStorage): StoredSession | null {
-  return parseMirrorMomentSession(storage.getItem(MIRROR_MOMENT_SESSION_KEY));
+export function readMirrorMomentSession(storage: SessionStorage, expectedMode: RuntimeMode): StoredSession | null {
+  return parseMirrorMomentSession(storage.getItem(MIRROR_MOMENT_SESSION_KEY), expectedMode);
 }
 
 export function writeMirrorMomentSession(
   storage: SessionStorage,
+  mode: RuntimeMode,
   profile: ShopperProfile,
   job: PlanJob | null,
   status: JobStatus | null,
@@ -78,7 +94,8 @@ export function writeMirrorMomentSession(
   )) ?? [];
 
   const session: StoredSession = {
-    version: 1,
+    version: 2,
+    mode,
     profile,
     ...(job ? { job } : {}),
     completedLooks,

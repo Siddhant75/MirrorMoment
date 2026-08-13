@@ -1,7 +1,25 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { RuntimeInfo } from "@/lib/runtime/types";
+
 import { mergeJobStatus, MirrorMomentApp } from "./mirror-moment-app";
+
+const liveRuntime = {
+  mode: "live",
+  label: "Live YouCam",
+  acceptsCustomPhotos: true,
+} as const;
+
+const replayRuntime = {
+  mode: "replay",
+  label: "Recorded Judge Replay",
+  acceptsCustomPhotos: false,
+} as const;
+
+function renderApp(runtime: RuntimeInfo = liveRuntime) {
+  return render(<MirrorMomentApp runtime={runtime} />);
+}
 
 describe("MirrorMomentApp", () => {
   beforeEach(() => {
@@ -14,7 +32,7 @@ describe("MirrorMomentApp", () => {
   });
 
   it("requires consent and a full-body photo before a plan can start", () => {
-    render(<MirrorMomentApp />);
+    renderApp();
 
     const start = screen.getByRole("button", { name: "Create my confidence plan" });
     expect(start).toBeDisabled();
@@ -36,7 +54,7 @@ describe("MirrorMomentApp", () => {
         ],
       }), { status: 200 }));
 
-    render(<MirrorMomentApp />);
+    renderApp();
     fireEvent.change(screen.getByLabelText("Face selfie"), {
       target: { files: [new File(["face"], "face.png", { type: "image/png" })] },
     });
@@ -60,7 +78,8 @@ describe("MirrorMomentApp", () => {
 
   it("restores profile choices, task references, and completed result URLs from the session", async () => {
     sessionStorage.setItem("mirrormoment-session", JSON.stringify({
-      version: 1,
+      version: 2,
+      mode: "live",
       profile: {
         occasion: "wedding",
         style: "minimal",
@@ -80,7 +99,7 @@ describe("MirrorMomentApp", () => {
       ],
     }));
 
-    render(<MirrorMomentApp />);
+    renderApp();
 
     expect(await screen.findByRole("heading", { name: "3. Compare your virtual looks" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Occasion" })).toHaveValue("wedding");
@@ -91,7 +110,8 @@ describe("MirrorMomentApp", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-07T12:00:00Z"));
     sessionStorage.setItem("mirrormoment-session", JSON.stringify({
-      version: 1,
+      version: 2,
+      mode: "live",
       profile: {
         occasion: "interview",
         style: "classic",
@@ -116,7 +136,7 @@ describe("MirrorMomentApp", () => {
       ],
     }), { status: 200 }));
 
-    render(<MirrorMomentApp />);
+    renderApp();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(90_001);
     });
@@ -128,7 +148,8 @@ describe("MirrorMomentApp", () => {
   it("shows successful optional skin progress and uses its cosmetic summary in the final plan", async () => {
     vi.useFakeTimers();
     sessionStorage.setItem("mirrormoment-session", JSON.stringify({
-      version: 1,
+      version: 2,
+      mode: "live",
       profile: {
         occasion: "interview",
         style: "classic",
@@ -159,7 +180,7 @@ describe("MirrorMomentApp", () => {
       ],
     }), { status: 200 }));
 
-    render(<MirrorMomentApp />);
+    renderApp();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_001);
     });
@@ -175,7 +196,8 @@ describe("MirrorMomentApp", () => {
 
   it("makes the no-skin fallback explicit in a completed plan", async () => {
     sessionStorage.setItem("mirrormoment-session", JSON.stringify({
-      version: 1,
+      version: 2,
+      mode: "live",
       profile: {
         occasion: "interview",
         style: "classic",
@@ -197,7 +219,7 @@ describe("MirrorMomentApp", () => {
       ],
     }));
 
-    render(<MirrorMomentApp />);
+    renderApp();
     fireEvent.click(await screen.findAllByRole("button", { name: "Choose this look" }).then((buttons) => buttons[0]));
 
     expect(screen.getByText("occasion-and-style personalized")).toBeInTheDocument();
@@ -227,5 +249,31 @@ describe("MirrorMomentApp", () => {
         { outfitId: "graphite-set", status: "failed", errorCode: "invalid_image" },
       ],
     });
+  });
+
+  it("labels replay permanently, locks its recorded profile, and replaces file inputs with demo choices", () => {
+    renderApp(replayRuntime);
+
+    expect(screen.getByText("Recorded Judge Replay")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Occasion" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Style" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Formality" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Budget" })).toBeDisabled();
+    expect(screen.getByText(/locked to the successful recorded scenario/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Face selfie")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Full-body photo")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use demo selfie" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use demo full-body photo" })).toBeInTheDocument();
+  });
+
+  it("allows the bundled replay photos to satisfy the consent gate", () => {
+    renderApp(replayRuntime);
+
+    const start = screen.getByRole("button", { name: "Create my confidence plan" });
+    fireEvent.click(screen.getByRole("button", { name: "Use demo selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use demo full-body photo" }));
+    expect(start).toBeDisabled();
+    fireEvent.click(screen.getByLabelText("I consent to processing these photos for this session."));
+    expect(start).toBeEnabled();
   });
 });

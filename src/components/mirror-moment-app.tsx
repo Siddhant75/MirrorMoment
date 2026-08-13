@@ -1,11 +1,16 @@
 "use client";
 
 import { toPng } from "html-to-image";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { RuntimeBadge } from "@/components/runtime-badge";
+import { materializePhoto, type PhotoSelection } from "@/lib/client/photo-selection";
 import { buildConfidencePlan } from "@/lib/domain/recommendation";
 import { budgets, formalities, occasions, styles, type ShopperProfile } from "@/lib/domain/types";
 import { isTaskReference, type TaskAttempt } from "@/lib/plan/types";
+import { replayScenario } from "@/lib/replay/scenario";
+import type { RuntimeInfo } from "@/lib/runtime/types";
 import {
   MIRROR_MOMENT_SESSION_KEY,
   parseMirrorMomentSession,
@@ -25,6 +30,20 @@ const initialProfile: ShopperProfile = {
   budget: "mid",
   skinPersonalization: true,
 };
+
+const replayFacePhoto = {
+  kind: "replay",
+  url: replayScenario.inputs.face.path,
+  name: "synthetic-face.jpg",
+  contentType: "image/jpeg",
+} as const;
+
+const replayBodyPhoto = {
+  kind: "replay",
+  url: replayScenario.inputs.body.path,
+  name: "synthetic-body.jpg",
+  contentType: "image/jpeg",
+} as const;
 
 const POLL_INTERVAL_MS = 2_000;
 const POLL_TIMEOUT_MS = 90_000;
@@ -105,7 +124,22 @@ async function upload(file: File, purpose: "skin" | "clothes") {
   return response.json() as Promise<{ fileId: string }>;
 }
 
-export function MirrorMomentApp() {
+async function uploadSelection(
+  selection: Exclude<PhotoSelection, null>,
+  purpose: "skin" | "clothes",
+) {
+  return upload(await materializePhoto(selection), purpose);
+}
+
+function getInitialProfile(runtime: RuntimeInfo, session: StoredSession | null): ShopperProfile {
+  if (runtime.mode === "live") return session?.profile ?? initialProfile;
+  return {
+    ...replayScenario.profile,
+    skinPersonalization: session?.profile.skinPersonalization ?? replayScenario.profile.skinPersonalization,
+  };
+}
+
+export function MirrorMomentApp({ runtime }: { runtime: RuntimeInfo }) {
   const sessionSnapshot = useSyncExternalStore(
     subscribeToSessionSnapshot,
     getSessionSnapshot,
@@ -122,8 +156,9 @@ export function MirrorMomentApp() {
 
   const initialSession = parseMirrorMomentSession(
     sessionSnapshot === EMPTY_SESSION_SNAPSHOT ? null : sessionSnapshot,
+    runtime.mode,
   );
-  return <HydratedMirrorMomentApp initialSession={initialSession} />;
+  return <HydratedMirrorMomentApp initialSession={initialSession} runtime={runtime} />;
 }
 
 function restoredStatus(session: StoredSession | null): JobStatus | null {
@@ -141,11 +176,17 @@ function restoredStatus(session: StoredSession | null): JobStatus | null {
   };
 }
 
-function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSession | null }) {
-  const [profile, setProfile] = useState<ShopperProfile>(initialSession?.profile ?? initialProfile);
+function HydratedMirrorMomentApp({
+  initialSession,
+  runtime,
+}: {
+  initialSession: StoredSession | null;
+  runtime: RuntimeInfo;
+}) {
+  const [profile, setProfile] = useState<ShopperProfile>(() => getInitialProfile(runtime, initialSession));
   const [consent, setConsent] = useState(false);
-  const [facePhoto, setFacePhoto] = useState<File | null>(null);
-  const [bodyPhoto, setBodyPhoto] = useState<File | null>(null);
+  const [facePhoto, setFacePhoto] = useState<PhotoSelection>(null);
+  const [bodyPhoto, setBodyPhoto] = useState<PhotoSelection>(null);
   const [job, setJob] = useState<PlanJob | null>(initialSession?.job ?? null);
   const [status, setStatus] = useState<JobStatus | null>(() => restoredStatus(initialSession));
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
@@ -168,8 +209,8 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
       sessionStorage.removeItem(MIRROR_MOMENT_SESSION_KEY);
       return;
     }
-    writeMirrorMomentSession(sessionStorage, profile, job, status);
-  }, [job, profile, status]);
+    writeMirrorMomentSession(sessionStorage, runtime.mode, profile, job, status);
+  }, [job, profile, runtime.mode, status]);
 
   useEffect(() => {
     if (!job || allSettled) return;
@@ -226,8 +267,8 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
     setSelectedOutfitId(null);
     try {
       const uploadResults = await Promise.allSettled([
-        upload(bodyPhoto, "clothes"),
-        ...(profile.skinPersonalization && facePhoto ? [upload(facePhoto, "skin")] : []),
+        uploadSelection(bodyPhoto, "clothes"),
+        ...(profile.skinPersonalization && facePhoto ? [uploadSelection(facePhoto, "skin")] : []),
       ]);
       const bodyResult = uploadResults[0];
       if (bodyResult.status === "rejected") throw bodyResult.reason;
@@ -271,7 +312,7 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
       return;
     }
     try {
-      const body = await upload(bodyPhoto, "clothes");
+      const body = await uploadSelection(bodyPhoto, "clothes");
       const response = await fetch("/api/look-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -297,7 +338,7 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
 
   function clearSession() {
     removeMirrorMomentSession(sessionStorage);
-    setProfile(initialProfile);
+    setProfile(getInitialProfile(runtime, null));
     setConsent(false);
     setJob(null);
     setStatus(null);
@@ -315,12 +356,19 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#a84e3f]">MirrorMoment</p>
             <h1 className="font-serif text-4xl leading-tight sm:text-5xl">A look that meets the moment.</h1>
           </div>
+          <RuntimeBadge runtime={runtime} />
           <p className="max-w-sm text-sm leading-6 text-[#635a53]">One guided decision for your outfit and optional cosmetic prep—built for the moments that matter.</p>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
           <section className="rounded-3xl bg-white p-6 shadow-sm sm:p-8" aria-labelledby="personalize-heading">
             <h2 id="personalize-heading" className="font-serif text-2xl">1. Set your moment</h2>
+            {runtime.mode === "replay" && (
+              <div className="mt-4 rounded-2xl border border-[#e6c4a7] bg-[#fff7ee] p-4 text-sm leading-6 text-[#714125]">
+                <p className="font-semibold">Key-free judge replay</p>
+                <p className="mt-1">This mode replays recorded results from a successful YouCam Skin Analysis and Apparel VTO run using one bundled synthetic subject. The profile is locked to the successful recorded scenario so its inputs, recommendations, and results stay truthfully paired.</p>
+              </div>
+            )}
             <p className="mt-2 text-sm text-[#635a53]">Choose what you are getting ready for. We’ll use these choices to curate three complete looks.</p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {([
@@ -332,8 +380,9 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
                 <label key={field} className="grid gap-2 text-sm font-medium">
                   {readable(field)}
                   <select
-                    className="rounded-xl border border-[#d8d0c7] bg-[#fffdfa] px-3 py-3"
+                    className="rounded-xl border border-[#d8d0c7] bg-[#fffdfa] px-3 py-3 disabled:cursor-not-allowed disabled:bg-[#eee8e1] disabled:text-[#766b63]"
                     value={profile[field]}
+                    disabled={!runtime.acceptsCustomPhotos}
                     onChange={(event) => setProfile((current) => ({ ...current, [field]: event.target.value }))}
                   >
                     {values.map((value) => <option key={value} value={value}>{readable(value)}</option>)}
@@ -345,7 +394,8 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
             <div className="mt-8 border-t border-[#ece6df] pt-6">
               <h2 className="font-serif text-2xl">2. Add your photos</h2>
               <p className="mt-2 text-sm text-[#635a53]">Use a clear front-facing selfie for optional cosmetic personalization and a full-body photo for virtual try-on.</p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {runtime.acceptsCustomPhotos ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-2 rounded-2xl border border-dashed border-[#cbbdaf] p-4 text-sm font-medium">
                   Face selfie {profile.skinPersonalization ? "(required)" : "(optional)"}
                   <input aria-label="Face selfie" type="file" accept="image/jpeg,image/png" onChange={(event) => setFacePhoto(event.target.files?.[0] ?? null)} />
@@ -356,7 +406,53 @@ function HydratedMirrorMomentApp({ initialSession }: { initialSession: StoredSes
                   <input aria-label="Full-body photo" type="file" accept="image/jpeg,image/png" onChange={(event) => setBodyPhoto(event.target.files?.[0] ?? null)} />
                   <span className="text-xs font-normal text-[#635a53]">Stand upright with your full look in frame.</span>
                 </label>
-              </div>
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <article className="overflow-hidden rounded-2xl border border-[#ddd2c7] bg-[#fffdfa]">
+                    <Image
+                      src={replayScenario.inputs.face.path}
+                      alt={replayScenario.inputs.face.alt}
+                      width={480}
+                      height={600}
+                      className="h-48 w-full object-cover object-top"
+                    />
+                    <div className="p-4">
+                      <p className="text-sm font-semibold">Bundled synthetic selfie</p>
+                      <p className="mt-1 text-xs leading-5 text-[#635a53]">Validated for the recorded Skin Analysis result.</p>
+                      <button
+                        type="button"
+                        className="mt-3 rounded-full border border-[#a84e3f] px-4 py-2 text-sm font-semibold text-[#8f3528]"
+                        onClick={() => setFacePhoto(replayFacePhoto)}
+                      >
+                        Use demo selfie
+                      </button>
+                      {facePhoto && <p className="mt-2 text-xs font-semibold text-[#32855a]">Demo selfie selected.</p>}
+                    </div>
+                  </article>
+                  <article className="overflow-hidden rounded-2xl border border-[#ddd2c7] bg-[#fffdfa]">
+                    <Image
+                      src={replayScenario.inputs.body.path}
+                      alt={replayScenario.inputs.body.alt}
+                      width={480}
+                      height={600}
+                      className="h-48 w-full object-cover object-top"
+                    />
+                    <div className="p-4">
+                      <p className="text-sm font-semibold">Bundled synthetic full-body photo</p>
+                      <p className="mt-1 text-xs leading-5 text-[#635a53]">Validated for the three recorded Apparel VTO results.</p>
+                      <button
+                        type="button"
+                        className="mt-3 rounded-full border border-[#a84e3f] px-4 py-2 text-sm font-semibold text-[#8f3528]"
+                        onClick={() => setBodyPhoto(replayBodyPhoto)}
+                      >
+                        Use demo full-body photo
+                      </button>
+                      {bodyPhoto && <p className="mt-2 text-xs font-semibold text-[#32855a]">Demo full-body photo selected.</p>}
+                    </div>
+                  </article>
+                </div>
+              )}
               <label className="mt-5 flex gap-3 text-sm leading-5">
                 <input
                   type="checkbox"
