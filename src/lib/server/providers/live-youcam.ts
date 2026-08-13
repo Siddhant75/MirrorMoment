@@ -20,26 +20,32 @@ type LiveYouCamClient = Pick<YouCamClient,
 export class LiveYouCamProvider implements MirrorMomentProvider {
   readonly mode = "live" as const;
 
+  readonly #client: LiveYouCamClient;
+  readonly #referenceFileIdFor: (outfit: Outfit) => Promise<string>;
+
   constructor(
-    private readonly client: LiveYouCamClient,
-    private readonly referenceFileIdFor: (outfit: Outfit) => Promise<string>,
-  ) {}
+    client: LiveYouCamClient,
+    referenceFileIdFor: (outfit: Outfit) => Promise<string>,
+  ) {
+    this.#client = client;
+    this.#referenceFileIdFor = referenceFileIdFor;
+  }
 
   uploadPhoto(purpose: "skin" | "clothes", input: PhotoUploadInput) {
-    return this.client.uploadFile(purpose, input);
+    return this.#client.uploadFile(purpose, input);
   }
 
   startSkinTask(faceFileId: string) {
-    return this.client.createSkinTask(faceFileId);
+    return this.#client.createSkinTask(faceFileId);
   }
 
   async startLookTask(bodyFileId: string, outfit: Outfit) {
-    const referenceFileId = await this.referenceFileIdFor(outfit);
-    return this.client.createClothesTask(bodyFileId, referenceFileId, outfit.garmentCategory);
+    const referenceFileId = await this.#referenceFileIdFor(outfit);
+    return this.#client.createClothesTask(bodyFileId, referenceFileId, outfit.garmentCategory);
   }
 
   async readSkinTask(taskId: string): Promise<ProviderSkinTaskResult> {
-    const result = await this.client.getSkinTask(taskId);
+    const result = await this.#client.getSkinTask(taskId);
     if (result.status === "succeeded") {
       return {
         status: "succeeded",
@@ -53,7 +59,7 @@ export class LiveYouCamProvider implements MirrorMomentProvider {
   }
 
   async readLookTask(taskId: string): Promise<ProviderLookTaskResult> {
-    const result = await this.client.getClothesTask(taskId);
+    const result = await this.#client.getClothesTask(taskId);
     return {
       status: result.status,
       ...(result.resultUrl ? { resultUrl: result.resultUrl } : {}),

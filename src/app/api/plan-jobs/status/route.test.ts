@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getYouCamClient } from "@/lib/server/youcam";
+import { getMirrorMomentProvider } from "@/lib/server/provider";
 
 import { POST } from "./route";
 
-vi.mock("@/lib/server/youcam", () => ({ getYouCamClient: vi.fn() }));
+vi.mock("@/lib/server/provider", () => ({ getMirrorMomentProvider: vi.fn() }));
 
 describe("POST /api/plan-jobs/status", () => {
   beforeEach(() => {
@@ -12,26 +12,16 @@ describe("POST /api/plan-jobs/status", () => {
   });
 
   it("returns a normalized cosmetic summary without exposing the vendor payload", async () => {
-    vi.mocked(getYouCamClient).mockReturnValue({
-      getSkinTask: vi.fn().mockResolvedValue({
+    vi.mocked(getMirrorMomentProvider).mockReturnValue({
+      readSkinTask: vi.fn().mockResolvedValue({
         status: "succeeded",
-        vendorResult: {
-          data: {
-            task_status: "success",
-            results: {
-              output: [
-                { type: "moisture", ui_score: 88, raw_score: 82.4, mask_urls: [] },
-                { type: "texture", ui_score: 41, raw_score: 36.2, mask_urls: [] },
-              ],
-            },
-          },
-        },
+        summary: { label: "hydration", score: 88 },
       }),
-      getClothesTask: vi.fn()
+      readLookTask: vi.fn()
         .mockResolvedValueOnce({ status: "succeeded", resultUrl: "https://vendor.example/look-1.png" })
         .mockResolvedValueOnce({ status: "processing" })
         .mockResolvedValueOnce({ status: "failed", errorCode: "invalid_image" }),
-    } as unknown as ReturnType<typeof getYouCamClient>);
+    } as unknown as ReturnType<typeof getMirrorMomentProvider>);
 
     const response = await POST(new Request("http://localhost/api/plan-jobs/status", {
       method: "POST",
@@ -58,13 +48,13 @@ describe("POST /api/plan-jobs/status", () => {
   });
 
   it("preserves successful look statuses when another vendor poll rejects", async () => {
-    vi.mocked(getYouCamClient).mockReturnValue({
-      getSkinTask: vi.fn().mockRejectedValue(new Error("temporary skin poll failure")),
-      getClothesTask: vi.fn()
+    vi.mocked(getMirrorMomentProvider).mockReturnValue({
+      readSkinTask: vi.fn().mockRejectedValue(new Error("temporary skin poll failure")),
+      readLookTask: vi.fn()
         .mockResolvedValueOnce({ status: "succeeded", resultUrl: "https://vendor.example/look-1.png" })
         .mockRejectedValueOnce(new Error("temporary look poll failure"))
         .mockResolvedValueOnce({ status: "failed", errorCode: "invalid_image" }),
-    } as unknown as ReturnType<typeof getYouCamClient>);
+    } as unknown as ReturnType<typeof getMirrorMomentProvider>);
 
     const response = await POST(new Request("http://localhost/api/plan-jobs/status", {
       method: "POST",
@@ -91,11 +81,11 @@ describe("POST /api/plan-jobs/status", () => {
   });
 
   it("returns task-creation failures without polling them", async () => {
-    const getSkinTask = vi.fn();
-    const getClothesTask = vi.fn()
+    const readSkinTask = vi.fn();
+    const readLookTask = vi.fn()
       .mockResolvedValueOnce({ status: "processing" })
       .mockResolvedValueOnce({ status: "succeeded", resultUrl: "https://vendor.example/look-3.png" });
-    vi.mocked(getYouCamClient).mockReturnValue({ getSkinTask, getClothesTask } as unknown as ReturnType<typeof getYouCamClient>);
+    vi.mocked(getMirrorMomentProvider).mockReturnValue({ readSkinTask, readLookTask } as unknown as ReturnType<typeof getMirrorMomentProvider>);
 
     const response = await POST(new Request("http://localhost/api/plan-jobs/status", {
       method: "POST",
@@ -111,8 +101,8 @@ describe("POST /api/plan-jobs/status", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(getSkinTask).not.toHaveBeenCalled();
-    expect(getClothesTask).toHaveBeenCalledTimes(2);
+    expect(readSkinTask).not.toHaveBeenCalled();
+    expect(readLookTask).toHaveBeenCalledTimes(2);
     expect(await response.json()).toEqual({
       skin: { status: "failed", errorCode: "vendor_unavailable" },
       looks: [

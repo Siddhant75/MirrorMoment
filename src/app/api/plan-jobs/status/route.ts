@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { summarizeSkinResult } from "@/lib/domain/skin-summary";
-import { getYouCamClient } from "@/lib/server/youcam";
+import { getMirrorMomentProvider } from "@/lib/server/provider";
 import { normalizeYouCamErrorCode } from "@/lib/youcam/errors";
-import type { TaskResult } from "@/lib/youcam/types";
 
 const taskSchema = z.object({ taskId: z.string().min(1) });
 const failedTaskSchema = z.object({
@@ -23,26 +21,18 @@ function normalizeRejectedPoll(reason: unknown) {
   return { status: "processing" as const, errorCode: normalizeYouCamErrorCode(reason) };
 }
 
-function normalizeSkinResult(result: TaskResult) {
-  return {
-    status: result.status,
-    ...(result.errorCode ? { errorCode: result.errorCode } : {}),
-    ...(result.status === "succeeded" ? { summary: summarizeSkinResult(result.vendorResult) } : {}),
-  };
-}
-
 export async function POST(request: Request) {
   try {
     const input = statusInputSchema.parse(await request.json());
-    const client = getYouCamClient();
+    const provider = getMirrorMomentProvider();
     const skinPromise = input.skinTask
       ? "taskId" in input.skinTask
-        ? client.getSkinTask(input.skinTask.taskId)
+        ? provider.readSkinTask(input.skinTask.taskId)
         : Promise.resolve({ status: "failed" as const, errorCode: input.skinTask.errorCode })
       : undefined;
     const lookPromises = input.lookTasks.map(async (look) => (
       "taskId" in look
-        ? { outfitId: look.outfitId, ...(await client.getClothesTask(look.taskId)) }
+        ? { outfitId: look.outfitId, ...(await provider.readLookTask(look.taskId)) }
         : { outfitId: look.outfitId, status: "failed" as const, errorCode: look.errorCode }
     ));
     const [skinResults, lookResults] = await Promise.all([
@@ -52,7 +42,7 @@ export async function POST(request: Request) {
     const skinResult = skinResults[0];
     const skin = skinResult
       ? skinResult.status === "fulfilled"
-        ? normalizeSkinResult(skinResult.value)
+        ? skinResult.value
         : normalizeRejectedPoll(skinResult.reason)
       : undefined;
     const looks = lookResults.map((result, index) => result.status === "fulfilled"

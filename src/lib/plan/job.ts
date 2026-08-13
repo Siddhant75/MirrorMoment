@@ -1,22 +1,18 @@
 import { selectLooks } from "@/lib/domain/recommendation";
 import type { ShopperProfile } from "@/lib/domain/types";
+import type { MirrorMomentProvider } from "@/lib/server/providers/types";
 import { normalizeYouCamErrorCode } from "@/lib/youcam/errors";
-import type { TaskReference } from "@/lib/youcam/types";
 
 import type { PlanJob, TaskAttempt } from "./types";
 
 export type { PlanJob } from "./types";
 
-type PlanClient = {
-  createSkinTask: (faceFileId: string) => Promise<TaskReference>;
-  createClothesTask: (bodyFileId: string, referenceFileId: string, category: "full_body") => Promise<TaskReference>;
-};
+type PlanProvider = Pick<MirrorMomentProvider, "startSkinTask" | "startLookTask">;
 
 export async function createPlanJob(
   profile: ShopperProfile,
   files: { faceFileId?: string; bodyFileId: string },
-  client: PlanClient,
-  referenceFileIdFor: (outfitId: string) => string | Promise<string>,
+  provider: PlanProvider,
 ): Promise<PlanJob> {
   if (profile.skinPersonalization && !files.faceFileId) {
     throw new Error("A face selfie is required when skin personalization is enabled.");
@@ -24,12 +20,11 @@ export async function createPlanJob(
 
   const looks = selectLooks(profile);
   const skinPromises = profile.skinPersonalization
-    ? [client.createSkinTask(files.faceFileId!)]
+    ? [provider.startSkinTask(files.faceFileId!)]
     : [];
   const lookPromises = looks.map(async (look) => {
-    const referenceFileId = await referenceFileIdFor(look.id);
     return {
-      ...(await client.createClothesTask(files.bodyFileId, referenceFileId, look.garmentCategory)),
+      ...(await provider.startLookTask(files.bodyFileId, look)),
       outfitId: look.id,
     };
   });

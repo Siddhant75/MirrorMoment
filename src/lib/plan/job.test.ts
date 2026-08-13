@@ -6,7 +6,7 @@ import { createPlanJob } from "./job";
 
 describe("createPlanJob", () => {
   it("creates one opted-in skin task and exactly three clothes tasks", async () => {
-    const clothesInputs: Array<[string, string, "full_body"]> = [];
+    const clothesInputs: Array<[string, string]> = [];
     const job = await createPlanJob(
       {
         occasion: "date",
@@ -17,19 +17,22 @@ describe("createPlanJob", () => {
       },
       { faceFileId: "face-1", bodyFileId: "body-1" },
       {
-        createSkinTask: async (fileId) => ({ taskId: `skin-${fileId}` }),
-        createClothesTask: async (...input) => {
-          clothesInputs.push(input);
+        startSkinTask: async (fileId) => ({ taskId: `skin-${fileId}` }),
+        startLookTask: async (bodyFileId, outfit) => {
+          clothesInputs.push([bodyFileId, outfit.id]);
           return { taskId: `look-${clothesInputs.length}` };
         },
       },
-      (outfitId) => `reference-${outfitId}`,
     );
 
     expect(job.skinTask).toEqual({ taskId: "skin-face-1" });
     expect(job.lookTasks).toHaveLength(3);
     expect(clothesInputs).toHaveLength(3);
-    expect(clothesInputs.every(([bodyFileId, , category]) => bodyFileId === "body-1" && category === "full_body")).toBe(true);
+    expect(clothesInputs).toEqual([
+      ["body-1", "black-evening-look"],
+      ["body-1", "blue-satin-set"],
+      ["body-1", "plum-wrap-dress"],
+    ]);
   });
 
   it("skips the skin task when cosmetic personalization is disabled", async () => {
@@ -43,10 +46,9 @@ describe("createPlanJob", () => {
       },
       { bodyFileId: "body-1" },
       {
-        createSkinTask: async () => ({ taskId: "should-not-run" }),
-        createClothesTask: async () => ({ taskId: "look" }),
+        startSkinTask: async () => ({ taskId: "should-not-run" }),
+        startLookTask: async () => ({ taskId: "look" }),
       },
-      () => "reference",
     );
 
     expect(job.skinTask).toBeUndefined();
@@ -64,24 +66,23 @@ describe("createPlanJob", () => {
       },
       { faceFileId: "face-1", bodyFileId: "body-1" },
       {
-        createSkinTask: async () => {
+        startSkinTask: async () => {
           throw new YouCamError("vendor_unavailable", "Skin is temporarily unavailable.");
         },
-        createClothesTask: async (_bodyFileId, referenceFileId) => {
-          if (referenceFileId === "reference-cocoa-blazer-set") {
+        startLookTask: async (_bodyFileId, outfit) => {
+          if (outfit.id === "cocoa-blazer-set") {
             throw new YouCamError("invalid_image", "Reference rejected.");
           }
-          return { taskId: `task-${referenceFileId}` };
+          return { taskId: `task-${outfit.id}` };
         },
       },
-      async (outfitId) => `reference-${outfitId}`,
     );
 
     expect(job.skinTask).toEqual({ status: "failed", errorCode: "vendor_unavailable" });
     expect(job.lookTasks).toEqual([
-      { taskId: "task-reference-navy-tailoring", outfitId: "navy-tailoring" },
+      { taskId: "task-navy-tailoring", outfitId: "navy-tailoring" },
       { status: "failed", errorCode: "invalid_image", outfitId: "cocoa-blazer-set" },
-      { taskId: "task-reference-graphite-set", outfitId: "graphite-set" },
+      { taskId: "task-graphite-set", outfitId: "graphite-set" },
     ]);
   });
 });
