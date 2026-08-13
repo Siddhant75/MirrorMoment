@@ -15,5 +15,9 @@ export default defineConfig({
     command: "node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3100",
     url: testBaseUrl,
     reuseExistingServer: false,
+    env: {
+      MIRRORMOMENT_MODE: "replay",
+      YOUCAM_API_KEY: "",
+    },
   },
 });

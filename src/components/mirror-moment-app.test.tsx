@@ -1,9 +1,15 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RuntimeInfo } from "@/lib/runtime/types";
 
 import { mergeJobStatus, MirrorMomentApp } from "./mirror-moment-app";
+
+const toPngMock = vi.hoisted(() => vi.fn());
+
+vi.mock("html-to-image", () => ({
+  toPng: toPngMock,
+}));
 
 const liveRuntime = {
   mode: "live",
@@ -24,6 +30,7 @@ function renderApp(runtime: RuntimeInfo = liveRuntime) {
 describe("MirrorMomentApp", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    toPngMock.mockReset();
   });
 
   afterEach(() => {
@@ -224,6 +231,44 @@ describe("MirrorMomentApp", () => {
 
     expect(screen.getByText("occasion-and-style personalized")).toBeInTheDocument();
     expect(screen.getByText("No Skin Analysis was used for this plan.")).toBeInTheDocument();
+  });
+
+  it("downloads a completed confidence plan as a named PNG", async () => {
+    sessionStorage.setItem("mirrormoment-session", JSON.stringify({
+      version: 2,
+      mode: "live",
+      profile: {
+        occasion: "interview",
+        style: "classic",
+        formality: "polished",
+        budget: "mid",
+        skinPersonalization: false,
+      },
+      job: {
+        lookTasks: [
+          { taskId: "look-1", outfitId: "navy-tailoring" },
+          { taskId: "look-2", outfitId: "cocoa-blazer-set" },
+          { taskId: "look-3", outfitId: "graphite-set" },
+        ],
+      },
+      completedLooks: [
+        { outfitId: "navy-tailoring", resultUrl: "https://vendor.example/navy.png" },
+        { outfitId: "cocoa-blazer-set", resultUrl: "https://vendor.example/cocoa.png" },
+        { outfitId: "graphite-set", resultUrl: "https://vendor.example/graphite.png" },
+      ],
+    }));
+    toPngMock.mockResolvedValue("data:image/png;base64,judge-plan");
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    renderApp();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Choose this look" }))[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Download plan" }));
+
+    await waitFor(() => expect(toPngMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    const clickedAnchor = clickSpy.mock.contexts[0] as HTMLAnchorElement;
+    expect(clickedAnchor).toHaveAttribute("download", "mirrormoment-confidence-plan.png");
+    expect(clickedAnchor).toHaveAttribute("href", "data:image/png;base64,judge-plan");
   });
 
   it("never regresses completed results when a stale poll reports an earlier state", () => {
