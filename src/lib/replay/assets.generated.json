@@ -1,0 +1,32 @@
+{
+  "synthetic-face": {
+    "path": "/replay/synthetic-face.jpg",
+    "contentType": "image/jpeg",
+    "byteLength": 239673,
+    "sha256": "7c8d0a8b0a41ed051a631084c64d9c1b110c03a13c8fe8cc72f39bd0ba140326"
+  },
+  "synthetic-body": {
+    "path": "/replay/synthetic-body.jpg",
+    "contentType": "image/jpeg",
+    "byteLength": 127031,
+    "sha256": "5f6a4838fb552be50a222f726957716b187faa2378f245383182741ac481f394"
+  },
+  "navy-tailoring-result": {
+    "path": "/replay/navy-tailoring-result.jpg",
+    "contentType": "image/jpeg",
+    "byteLength": 124556,
+    "sha256": "7f41e839085259d1849b98177ff1f66b6b55fda39855e17034db130a676d6d0a"
+  },
+  "cocoa-blazer-set-result": {
+    "path": "/replay/cocoa-blazer-set-result.jpg",
+    "contentType": "image/jpeg",
+    "byteLength": 136761,
+    "sha256": "398134eb1c55a91292cd508562cb904d117176de9e50bc26801cf4b35fd8e53c"
+  },
+  "graphite-set-result": {
+    "path": "/replay/graphite-set-result.jpg",
+    "contentType": "image/jpeg",
+    "byteLength": 149350,
+    "sha256": "e6add75c718c5a213a860538a996a7c404a17053b7a2c406f651866486a3714d"
+  }
+}

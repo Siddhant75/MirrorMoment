@@ -39,5 +39,15 @@ disabled TLS verification. After that correction, both uploads, Skin Analysis,
 and all three Clothes tasks succeeded. Railway should use its normal CA store
 without this machine-specific setting.
 
+Preparing a truthful offline judge replay exposed a second practical wall: the
+first Skin fixture and the VTO fixture depicted different synthetic identities.
+We generated a close-up from the VTO subject, then used the vendor response—not
+visual guesswork—to correct the framing. Two drafts returned
+`error_src_face_too_small`; YouCam measures the facial oval and requires it to
+occupy more than 60% of the image width. A tighter neutral, closed-mouth image
+then succeeded and returned the normalized cosmetic signal `radiance: 85`.
+This produced one coherent synthetic shopper across both APIs while retaining
+real, validated API evidence.
+
 The remaining evidence step is to repeat the flow on Railway and capture the
 five submission screenshots from a clean browser session.

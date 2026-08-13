@@ -75,6 +75,23 @@ These documentation checks now have a matching successful local live run:
 - AI Clothes V3 uses `src_file_id`, `ref_file_id`, and
   `garment_category: "full_body"`.
 
+## Matched-subject replay validation completed on 2026-08-13
+
+For the offline judge replay, the face input was regenerated from the same
+fictional synthetic identity used by the full-body VTO input. This prevents the
+replay from presenting Skin and apparel results as one shopper while showing
+two visibly different synthetic people.
+
+Two loose head-and-shoulders drafts reached task processing but returned
+`error_src_face_too_small`. The official Skin Analysis guidance requires the
+detected facial oval—not the hair or full head—to exceed 60% of the image
+width. The final neutral, closed-mouth portrait was framed more tightly,
+uploaded successfully, and completed Skin Analysis v2.1 with the normalized
+cosmetic result `{ label: "radiance", score: 85 }`.
+
+Only this normalized label and score are bundled. Vendor task IDs, raw result
+payloads, upload URLs, and the API key are not stored in the replay assets.
+
 References:
 
 - https://docs.perfectcorp.com/reference/ai_skin_analysis/v2.1
