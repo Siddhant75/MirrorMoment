@@ -44,6 +44,23 @@ export function getDemoServerLaunch(root) {
   };
 }
 
+export function getNpmInvocation(
+  args,
+  { platform = process.platform, environment = process.env } = {},
+) {
+  if (platform === "win32") {
+    return {
+      executable: environment.ComSpec || environment.COMSPEC || "cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd", ...args],
+    };
+  }
+
+  return {
+    executable: "npm",
+    args,
+  };
+}
+
 function readLocalApiKey() {
   const envPath = path.join(projectRoot, ".env.local");
   if (!existsSync(envPath)) return "";
@@ -126,8 +143,8 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(`YOUCAM_API_KEY status: ${safeRuntime.keyStatus}`);
   console.log("Building the production app...");
 
-  const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
-  const build = spawnSync(npmExecutable, ["run", "build"], {
+  const npmInvocation = getNpmInvocation(["run", "build"], { environment });
+  const build = spawnSync(npmInvocation.executable, npmInvocation.args, {
     cwd: projectRoot,
     env: environment,
     stdio: "inherit",

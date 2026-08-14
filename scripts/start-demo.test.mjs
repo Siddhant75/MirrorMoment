@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 import { describe, it } from "vitest";
@@ -6,6 +7,7 @@ import { describe, it } from "vitest";
 import {
   assertSupportedNode,
   getDemoServerLaunch,
+  getNpmInvocation,
   redactRuntime,
   validateMode,
 } from "./start-demo.mjs";
@@ -43,5 +45,27 @@ describe("demo launcher helpers", () => {
       cwd: path.resolve("C:/example/MirrorMoment/.next/standalone"),
       serverPath: path.resolve("C:/example/MirrorMoment/.next/standalone/server.js"),
     });
+  });
+
+  it("runs npm through the Windows command processor instead of spawning npm.cmd directly", () => {
+    const invocation = getNpmInvocation(["--version"], {
+      platform: "win32",
+      environment: {
+        ComSpec: "C:\\Windows\\System32\\cmd.exe",
+      },
+    });
+    assert.deepEqual(invocation, {
+      executable: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd", "--version"],
+    });
+
+    if (process.platform === "win32") {
+      const result = spawnSync(invocation.executable, invocation.args, {
+        encoding: "utf8",
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout.trim(), /^\d+\.\d+\.\d+$/);
+    }
   });
 });
