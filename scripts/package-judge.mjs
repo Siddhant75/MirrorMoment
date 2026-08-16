@@ -38,11 +38,11 @@ async function cleanGeneratedTargets() {
   await rm(archivePath, { force: true });
 }
 
-async function copyRequired(sourceRelative, destinationRelative, options = {}) {
-  const source = path.resolve(projectRoot, sourceRelative);
-  const destination = path.resolve(stagingRoot, destinationRelative);
-  const destinationPrefix = `${stagingRoot}${path.sep}`;
-  if (destination !== stagingRoot && !destination.startsWith(destinationPrefix)) {
+async function copyFromRoot(sourceRoot, destinationRoot, sourceRelative, destinationRelative, options = {}) {
+  const source = path.resolve(sourceRoot, sourceRelative);
+  const destination = path.resolve(destinationRoot, destinationRelative);
+  const destinationPrefix = `${destinationRoot}${path.sep}`;
+  if (destination !== destinationRoot && !destination.startsWith(destinationPrefix)) {
     throw new Error(`Package destination escaped staging: ${destinationRelative}`);
   }
   await mkdir(path.dirname(destination), { recursive: true });
@@ -55,11 +55,16 @@ async function copyRequired(sourceRelative, destinationRelative, options = {}) {
   });
 }
 
-async function copyJudgeMaterials() {
-  await copyRequired("packaging/judge", ".");
-  await copyRequired("docs/ASSET_ATTRIBUTION.md", "docs/ASSET_ATTRIBUTION.md");
-  await copyRequired("docs/API_NOTES.md", "docs/API_NOTES.md");
-  await copyRequired(".env.example", ".env.example");
+async function copyRequired(sourceRelative, destinationRelative, options = {}) {
+  return copyFromRoot(projectRoot, stagingRoot, sourceRelative, destinationRelative, options);
+}
+
+export async function copyJudgeMaterials(sourceRoot = projectRoot, destinationRoot = stagingRoot) {
+  await copyFromRoot(sourceRoot, destinationRoot, "packaging/judge", ".");
+  await copyFromRoot(sourceRoot, destinationRoot, "docs/ASSET_ATTRIBUTION.md", "docs/ASSET_ATTRIBUTION.md");
+  await copyFromRoot(sourceRoot, destinationRoot, "docs/API_NOTES.md", "docs/API_NOTES.md");
+  await copyFromRoot(sourceRoot, destinationRoot, ".env.example", ".env.example");
+  await copyFromRoot(sourceRoot, destinationRoot, "LICENSE", "LICENSE");
 }
 
 async function stageStandalone() {

@@ -6,25 +6,25 @@ submission.
 
 ## Current submission inventory
 
-Refreshed from the Devpost connector on 2026-08-13:
+Refreshed from the Devpost connector on 2026-08-16:
 
 - Submitter type: **Individual**
 - Country of residence: **India**
 - App status: **New**
 - Project start date: **07-27-26**
 - Track/topic: **Skin AI + Apparel VTO**
-- Repository: private `Siddhant75/MirrorMoment`; share with
-  `contact_event@PerfectCorp.com` before judging
+- Repository: public `Siddhant75/MirrorMoment` with an MIT source-code license
 - Website: not required
 - ZIP: not required; optional audited judge replay will be uploaded if useful
-- Screenshots: five required project screenshots planned
-- Video: required public 1-3 minute end-to-end demo; target 2:55, recorded
-  manually by the user with OBS
+- Screenshots: required by Devpost; local captures are intentionally kept out
+  of the source repository and must be uploaded through the submission form
+- Video: required public 1-3 minute end-to-end demo; a 2:55 local recording was
+  captured manually with OBS and still needs its final public video URL
 - Social post URL: optional and currently not supplied
 
-Do not claim the video or screenshots are complete until the user creates and
-checks them. Do not submit or change repository visibility without explicit
-user approval.
+Do not claim the public video upload or Devpost screenshot upload is complete
+until the user checks them. Do not submit or change repository visibility
+without explicit user approval.
 
 ## Product description draft
 
@@ -114,12 +114,14 @@ status, and retry routes with no key.
   and one-look retry.
 - 2026-08-13: post-refactor live route smoke returned `radiance: 85` and three
   distinct fresh VTO URLs in 77.2 seconds with no replay fallback.
-- Final automated gate: lint and TypeScript passed; Vitest passed 77/77 tests
-  across 20 files; the standalone production build passed; Playwright passed
+- Final automated gate: lint and TypeScript passed; Vitest passed 79/79 tests
+  across 21 files; the standalone production build passed; Playwright passed
   both key-free replay journeys.
-- Final optional archive: standalone, 6,271,867 bytes, SHA-256
-  `068a9f7651b9db4ddf8ec12c584d449dc59ef2e0c09d5d7d26cfb0a05d5da03a`.
-  That exact ZIP passed the fresh extracted HTTP smoke.
+- Final optional archive: standalone, 6,272,916 bytes, SHA-256
+  `afbc213ffa5f247e8411fc3f5c3d11f65e298e3af14659276c8e06b96789da36`.
+  Its 1,187 files passed the release policy with zero violations; the MIT
+  license is at the archive root and all 1,186 manifest hashes were verified
+  from a fresh extraction.
 
 ## Video and screenshot truthfulness
 

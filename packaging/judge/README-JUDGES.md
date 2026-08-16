@@ -60,3 +60,12 @@ available, and vendor failures do not fall back to replay results.
 See `docs/API_NOTES.md`, `docs/ASSET_ATTRIBUTION.md`, `PACKAGE_KIND.txt`, and
 `SHA256SUMS.txt` for integration evidence, provenance, package type, and file
 integrity information.
+
+## License and third-party boundaries
+
+The included MirrorMoment application source code and project-authored
+documentation are available under the MIT License in `LICENSE`. The license
+does not grant rights to Perfect Corp.'s YouCam APIs, services, names,
+trademarks, or recorded API outputs; those remain subject to the applicable
+Perfect Corp. terms. Media provenance is documented in
+`docs/ASSET_ATTRIBUTION.md`.
