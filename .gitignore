@@ -31,6 +31,7 @@ service-account*.json
 # Private inputs, API results, and local demo material
 /generated-media/
 /private-demo-images/
+/demo-video/
 /downloads/
 /tmp/
 
@@ -56,6 +57,7 @@ GEMINI.md
 /docs/superpowers/
 /docs/JUDGE_DEMO_RELEASE.md
 /.local-plans/
+/.devpost-hackathon-state.json
 /.github/copilot-instructions.md
 /.github/instructions/
 /.github/prompts/

@@ -6,6 +6,8 @@ preparing for, compares three YouCam Apparel VTO looks, optionally adds
 non-medical cosmetic context from YouCam Skin Analysis, and downloads one
 Confidence Plan.
 
+Public source repository: [Siddhant75/MirrorMoment](https://github.com/Siddhant75/MirrorMoment)
+
 The default runtime is a transparent, key-free **Recorded Judge Replay** built
 from successful YouCam outputs for one fictional synthetic subject. An explicit
 **Live YouCam** mode accepts new consented images and calls the real APIs. Live
@@ -146,8 +148,11 @@ Refreshed from the YouCam Devpost connector on 2026-08-13:
 - complete the required submitter, project-status/start-date, API-surprise,
   novel-use-case, and technical-obstacle questions.
 
-The repository is intentionally private until the owner decides to publish it.
-The creator must invite the required judge email before final submission.
+The source repository is public at
+[github.com/Siddhant75/MirrorMoment](https://github.com/Siddhant75/MirrorMoment),
+so judges can inspect the implementation and setup instructions directly. If
+the repository is made private again before judging, invite the required judge
+email listed in the event instructions.
 
 ## Repository safety and assets
 

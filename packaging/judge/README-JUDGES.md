@@ -5,6 +5,9 @@ Analysis v2.1 with YouCam AI Clothes V3. It curates three occasion-aware looks,
 adds optional non-medical cosmetic context, and produces a downloadable
 Confidence Plan.
 
+Public source repository:
+https://github.com/Siddhant75/MirrorMoment
+
 ## Recommended key-free replay
 
 The default is a **Recorded Judge Replay** captured from successful real YouCam
